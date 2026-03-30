@@ -1,0 +1,43 @@
+# Server Dashboard Configuration
+# Supports mock mode for development without real data sources
+
+dashboard:
+  refreshInterval: 1000  # milliseconds
+  mockMode: true         # set to false for real data
+
+docker:
+  enabled: true         # set to false to disable docker stats
+  containerLimit: 10    # max containers to display
+
+system:
+  cpuHistoryLength: 60
+  memoryHistoryLength: 60
+
+searchEngines:
+  google:
+    url: "https://www.google.com"
+    enabled: true
+  bing:
+    url: "https://www.bing.com"
+    enabled: true
+  yahoo:
+    url: "https://www.yahoo.com"
+    enabled: true
+
+mongodb:
+  enabled: false
+  connectionString: "mongodb://localhost:27017"
+  database: "app"
+
+kafka:
+  enabled: false
+  brokers:
+    - "localhost:9092"
+  groupId: "dashboard-consumer"
+
+theme:
+  borderColor: "blue"
+  titleColor: "white"
+  healthyColor: "green"
+  warningColor: "yellow"
+  criticalColor: "red"

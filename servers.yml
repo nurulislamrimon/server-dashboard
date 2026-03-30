@@ -1,0 +1,64 @@
+servers:
+  - name: "local"
+    host: "localhost"
+    port: 22
+    username: ""
+    local: true
+
+  # Uncomment and configure for SSH connections:
+  # - name: "production-web-01"
+  #   host: "192.168.1.100"
+  #   port: 22
+  #   username: "admin"
+  #   password: "your-password"
+  #   # OR use private key:
+  #   # privateKey: "/path/to/key"
+  #   # passphrase: "key-passphrase"
+  #
+  # - name: "production-db-01"
+  #   host: "192.168.1.101"
+  #   port: 22
+  #   username: "admin"
+  #   password: "your-password"
+
+dashboard:
+  refreshInterval: 1000
+  mockMode: true
+  selectedServer: 0
+
+docker:
+  enabled: true
+  containerLimit: 10
+
+system:
+  cpuHistoryLength: 60
+  memoryHistoryLength: 60
+
+searchEngines:
+  google:
+    url: "https://www.google.com"
+    enabled: true
+  bing:
+    url: "https://www.bing.com"
+    enabled: true
+  yahoo:
+    url: "https://www.yahoo.com"
+    enabled: true
+
+mongodb:
+  enabled: false
+  connectionString: "mongodb://localhost:27017"
+  database: "app"
+
+kafka:
+  enabled: false
+  brokers:
+    - "localhost:9092"
+  groupId: "dashboard-consumer"
+
+theme:
+  borderColor: "blue"
+  titleColor: "white"
+  healthyColor: "green"
+  warningColor: "yellow"
+  criticalColor: "red"
