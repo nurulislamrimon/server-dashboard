@@ -37,6 +37,7 @@ export class Dashboard {
   private dockerWidget: DockerWidget;
 
   private refreshInterval: NodeJS.Timeout | null = null;
+  private initialized: boolean = false;
 
   private lineChartSearch: any;
   private lineChartKafka: any;
@@ -76,6 +77,21 @@ export class Dashboard {
     this.setupWidgets();
     this.setupKeyboardControls();
     this.connectToCurrentServer();
+    this.initializeHistory();
+  }
+
+  private initializeHistory(): void {
+    const initialCpu = 30 + Math.random() * 40;
+    const initialMem = 40 + Math.random() * 30;
+    
+    for (let i = 0; i < 30; i++) {
+      const mockCpu = 30 + Math.random() * 40;
+      const mockMem = 40 + Math.random() * 30;
+      this.systemService.updateCpuHistory(mockCpu);
+      this.systemService.updateMemHistory(mockMem);
+    }
+    
+    this.initialized = true;
   }
 
   private async connectToCurrentServer(): Promise<void> {
@@ -263,9 +279,10 @@ export class Dashboard {
 
       let cpuUsage = 50;
       let memUsagePercent = 50;
-      let cpuHistory = this.systemService.getCpuHistory();
-      let memHistory = this.systemService.getMemHistory();
-
+      let totalMem = 16 * 1024 * 1024 * 1024;
+      let usedMem = 8 * 1024 * 1024 * 1024;
+      let cpuCores = 4;
+      let cpuSpeed = 3.5;
       const server = this.servers[this.currentServerIndex];
       
       if (this.config.dashboard.mockMode) {
@@ -273,23 +290,28 @@ export class Dashboard {
         const mockMem = 40 + Math.random() * 30;
         cpuUsage = mockCpu;
         memUsagePercent = mockMem;
-        cpuHistory = this.systemService.updateCpuHistory(mockCpu);
-        memHistory = this.systemService.updateMemHistory(mockMem);
+        usedMem = totalMem * (memUsagePercent / 100);
       } else if (server.local || server.host === 'localhost') {
-        const metrics = await this.localService.getMetrics();
-        cpuUsage = metrics.cpu.usage;
-        memUsagePercent = metrics.memory.usedPercent;
-        cpuHistory = this.systemService.updateCpuHistory(metrics.cpu.usage);
-        memHistory = this.systemService.updateMemHistory(metrics.memory.usedPercent);
-        this.remoteMetrics.set('localhost', metrics);
+        try {
+          const metrics = await this.localService.getMetrics();
+          cpuUsage = metrics.cpu.usage;
+          memUsagePercent = metrics.memory.usedPercent;
+          totalMem = metrics.memory.total;
+          usedMem = metrics.memory.used;
+          cpuCores = metrics.cpu.cores;
+          cpuSpeed = metrics.cpu.speed;
+          this.remoteMetrics.set('localhost', metrics);
+        } catch (error) {
+          console.log(chalk.yellow(`Local metrics error: ${error}`));
+        }
       } else {
         try {
           if (this.sshService.isConnected(server.host)) {
             const metrics = await this.sshService.getRemoteMetrics(server);
             cpuUsage = metrics.cpu.usage;
             memUsagePercent = metrics.memory.usedPercent;
-            cpuHistory = this.systemService.updateCpuHistory(metrics.cpu.usage);
-            memHistory = this.systemService.updateMemHistory(metrics.memory.usedPercent);
+            totalMem = metrics.memory.total;
+            usedMem = metrics.memory.used;
             this.remoteMetrics.set(server.host, metrics);
           }
         } catch (error) {
@@ -297,20 +319,25 @@ export class Dashboard {
         }
       }
 
-      this.cpuWidget.update({ usage: cpuUsage, cores: 4, speed: 3.5 }, cpuHistory);
+      const cpuHistory = this.systemService.updateCpuHistory(cpuUsage);
+      const memHistory = this.systemService.updateMemHistory(memUsagePercent);
+
+      this.cpuWidget.update({ usage: cpuUsage, cores: cpuCores, speed: cpuSpeed }, cpuHistory);
       this.memWidget.update({ 
-        total: 16 * 1024 * 1024 * 1024, 
-        used: 16 * 1024 * 1024 * 1024 * (memUsagePercent / 100),
-        free: 16 * 1024 * 1024 * 1024 * (1 - memUsagePercent / 100),
+        total: totalMem, 
+        used: usedMem,
+        free: totalMem - usedMem,
         usedPercent: memUsagePercent
       }, memHistory);
 
       if (cpuHistory.length > 0) {
-        this.cpuSparkline.setData({ text: 'CPU', data: cpuHistory });
+        const paddedCpuHistory = this.padArray(cpuHistory, 40, 0);
+        this.cpuSparkline.setData(['CPU'], [paddedCpuHistory]);
       }
 
       if (memHistory.length > 0) {
-        this.memSparkline.setData({ text: 'RAM', data: memHistory });
+        const paddedMemHistory = this.padArray(memHistory, 40, 0);
+        this.memSparkline.setData(['MEM'], [paddedMemHistory]);
       }
 
       const mongoStatus = this.mockDataService.updateMongoStatus();
@@ -358,6 +385,14 @@ export class Dashboard {
     } catch (error) {
       console.error('Update error:', error);
     }
+  }
+
+  private padArray(arr: number[], size: number, fill: number): number[] {
+    if (arr.length >= size) {
+      return arr.slice(-size);
+    }
+    const result = new Array(size - arr.length).fill(fill);
+    return [...result, ...arr];
   }
 
   public start(): void {
